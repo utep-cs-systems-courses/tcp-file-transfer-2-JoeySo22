@@ -1,3 +1,5 @@
+#! /usr/bin/env python3
+
 '''
 Author: Jose Eduardo Soto
 
@@ -13,34 +15,86 @@ Description:
 
 import os, socket, sys
 
+sys.path.append('../lib')
+import params
+
+switchesVarDefaults = ((('-l', '--listenPort'), 'listenPort', 50001),
+                       (('-?', '--usage'), 'usage', False),)
+
+progname = 'fileServer'
+paramMap = params.parseParams(switchesVarDefaults)
+
+listening_port, listening_addr = paramMap['listenPort'], ''
+
+if paramMap['usage']:
+    params.usage()
+
+
 DATA_SIZE = 80 # 79 + newline
-START_FILE = '***START***'
-FINISH_FILE = '***FINISH***'
-START_SESSION = '***SESSION_START***' # Longest: 19
-FINISH_SESSION = '***SESSION_OVER***'
-SUCCESS = '***SUCCESS***'
-FAILURE = '***FAILURE***'
-GIVE_DATA = '***GIVE_DATA***'
+TOKEN = '\0' #I don't know if this extends to other protocals or programs but
+# it works for mine. When encoded it is not the same as b'' so its good.
+
+filename = ''
+file_fd = None
 
 def main():
     #Servers need IBLA, which stands for initiate, bind, listen, and accept.
-    s_sock = sock.socket(sock.AF_INET, sock.SOCK_STREAM) #ipv4 and tcp settings
-    s_sock.bind(listening_addr, listening_port)
+    s_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #ipv4 and tcp settings
+    s_sock.bind((listening_addr, listening_port))
     s_sock.listen(1)
 
+    os.write(1, 'Listening for clients...'.encode())
     client_sock, client_addr = s_sock.accept()
+    os.write(1, ('Got one: %s' % client_addr).encode())
 
     working = True
-    
     client_sock_fd = client_sock.fileno()
     while working:
-        data = client_sock_fd.read(0, DATA_SIZE)
-        if data is SESSION_START:
-            client_sock_fd.write(1, GIVE_DATA)
-        elif data is START:
-            
-        elif data is FINISH:
-        elif data is SESSION_OVER:
+        data = os.read(client_sock_fd, DATA_SIZE.encode())
+        digest_stream(data.decode())
+
+def digest_stream(data_string, state_flag):
+    if TOKEN+TOKEN in data_string: #Handle the empty file.
+        if state_flag is 'd':
+            os.close(file_fd)
+            i = data_string.index(TOKEN)+2
+            digest_stream(data_string[i:], 'f')
+    if state_flag is 'f':
+        if TOKEN in data_string:
+            i = data_string.index(TOKEN)
+            add_to_filename(data_string[0:i])
+            open_file_descriptor()
+            digest_stream(data_string[i + 1:], 'd')
+        else:
+            add_to_filename(data_string)
+    elif state_flag is 'd':
+        if TOKEN in data_string:
+            i = data_string.index(TOKEN)
+            write_to_file(data_string(data_string[:i]))
+            os.close(file_fd)
+            digest_stream(data_string[i + 1,], 'f')
+        else:
+            write_to_file(data_string)
+    else:
+        raise Exception('Cannot digest stream. unrecognized state flag: %s'
+                        % state_flag)
+
+
+def add_to_filename(filename_string):
+    filename += filename_string
+
+
+def open_file_descriptor():
+    if os.path.isfile(filename):
+        f_split = filename.split('.')
+        file_part = f_split[0]
+        f_split[0] = file_part + '_copy'
+        filename = '.'.join(f_split)
+    file_fd = os.open(filename, os.O_WRONLY | os.O_CREAT)
+
+
+def write_to_file(data_string):
+    os.write(file_fd, data_string.encode())
 
 
 main()

@@ -13,7 +13,7 @@ sys.path.append('../lib')
 import params
 
 def main():
-    list_of_files = get_files_from_arguments(sys.argv)
+    list_of_files = get_filenames_from_arguments(sys.argv)
 
     switches = ((('-s', '--server'), 'server', '127.0.0.1:50001'),
                 (('-?', '--usage'), 'usage', False),
@@ -30,13 +30,8 @@ def main():
     server_port = int(server_port)
 
     DATA_SIZE = 80 #79 + newline. From pep8
-    START_FILE = '***START***'
-    FINISH_FILE = '***FINISH***'
-    START_SESSION = '***SESSION_START***' # Longest: 19
-    FINISH_SESSION = '***SESSION_OVER***'
-    SUCCESS = '***SUCCESS***'
-    FAILURE = '***FAILURE***'
-    GIVE_DATA = '***GIVE_DATA***'
+    TOKEN = '\0' '''I don't know if this extends to other protocals or programs but
+    it works for mine. When encoded it is not the same as b'' so its good.'''
 
     file_descriptors = []
     for f in list_of_files:
@@ -59,14 +54,14 @@ def main():
     client_fd = cl_sock.fileno() #Will use file_descriptor of socket. 
     for f_fd in file_descriptors:
         file_desc, file_name = f_fd
-        os.write(client_fd, ('$$$%s$$$' % file_name).encode())
-        #Need a way to send the name of the file so that the client expects it.
-
+        os.write(client_fd, TOKEN.encode())
+        os.write(client_fd, file_name.encode())
+        os.write(client_fd, TOKEN.encode())
         mini_buff = os.read(f_fd, DATA_SIZE) #Good linelength format. From py books
         while mini_buff:
             os.write(client_fd, mini_buff)
-        os.write(client_fd, FINISH_FILE.encode()) #File is finished message to Server
-    os.write(client_fd, FINISH_SESSION.encode())#Session is finished
+        os.close(file_desc)
+    os.close(client_fd)
 
 
 '''
@@ -74,16 +69,16 @@ Given the entire sys.argv data, find out what all intended filenames are.
 '''
 def get_filenames_from_arguments(arguments):
     list_of_files = []
-    if '-f' in a:
+    if '-f' in arguments:
         os.write(1, 'Found [-f]\n'.encode())
-        _f_index = a.index('-f')
-        list_of_files.extend(a[_f_index + 1: find_end_of_flag(
-            a[_f_index + 1:], len(a))])
-    elif '--files' in a:
+        _f_index = arguments.index('-f')
+        list_of_files.extend(arguments[_f_index + 1: find_end_of_flag(
+            arguments[_f_index + 1:], len(arguments))])
+    elif '--files' in arguments:
         os.write(1, 'Found [--files]\n'.encode())
-        _files_index = a.index('--files')
-        list_of_files.extend(a[_files_index + 1: find_end_of_flag(
-            a[_files_index + 1:], len(a))])
+        _files_index = arguments.index('--files')
+        list_of_files.extend(arguments[_files_index + 1: find_end_of_flag(
+            arguments[_files_index + 1:], len(arguments))])
     else:
         os.write(1, b'Error: There is no file input\n')
         sys.exit(-1)
