@@ -7,7 +7,7 @@ Description: This is the client module for the file tranfering program.
 '''
 
 import socket as sock
-import sys, os
+import re, sys, os
 
 sys.path.append('../lib')
 import params
@@ -53,7 +53,7 @@ def main():
 
     client_fd = cl_sock.fileno() #Will use file_descriptor of socket. 
     for f_fd in file_descriptors:
-        file_desc, file_name = f_fd
+        file_desc, file_name = file_descriptors
         os.write(client_fd, TOKEN.encode())
         os.write(client_fd, file_name.encode())
         os.write(client_fd, TOKEN.encode())

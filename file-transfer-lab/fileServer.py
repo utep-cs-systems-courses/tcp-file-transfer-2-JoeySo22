@@ -45,15 +45,19 @@ def main():
 
     os.write(1, 'Listening for clients...'.encode())
     client_sock, client_addr = s_sock.accept()
-    os.write(1, ('Got one: %s' % client_addr).encode())
+    client_ip, client_port = client_addr
+    print(client_addr)
+    os.write(1, ('Got one: %s\n' % client_ip).encode())
 
     working = True
     client_sock_fd = client_sock.fileno()
     while working:
-        data = os.read(client_sock_fd, DATA_SIZE.encode())
-        digest_stream(data.decode())
+        data = os.read(client_sock_fd, DATA_SIZE)
+        digest_stream(data.decode(), 'f')
 
 def digest_stream(data_string, state_flag):
+    global TOKEN
+    global file_
     if TOKEN+TOKEN in data_string: #Handle the empty file.
         if state_flag is 'd':
             os.close(file_fd)
@@ -63,6 +67,7 @@ def digest_stream(data_string, state_flag):
         if TOKEN in data_string:
             i = data_string.index(TOKEN)
             add_to_filename(data_string[0:i])
+            print(filename, i)
             open_file_descriptor()
             digest_stream(data_string[i + 1:], 'd')
         else:
@@ -81,19 +86,24 @@ def digest_stream(data_string, state_flag):
 
 
 def add_to_filename(filename_string):
+    global filename
     filename += filename_string
 
 
 def open_file_descriptor():
+    global filename
+    global file_fd
     if os.path.isfile(filename):
         f_split = filename.split('.')
         file_part = f_split[0]
         f_split[0] = file_part + '_copy'
         filename = '.'.join(f_split)
+    print(filename)
     file_fd = os.open(filename, os.O_WRONLY | os.O_CREAT)
 
 
 def write_to_file(data_string):
+    global file_fd
     os.write(file_fd, data_string.encode())
 
 
