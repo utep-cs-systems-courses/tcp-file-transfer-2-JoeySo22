@@ -9,31 +9,30 @@ Description: This is the client module for the file tranfering program.
 import socket as sock
 import re, sys, os
 
-sys.path.append('../lib')
-import params
+'''sys.path.append('../lib')
+import params '''
 
 def main():
     list_of_files = get_filenames_from_arguments(sys.argv)
 
-    switches = ((('-s', '--server'), 'server', '127.0.0.1:50001'),
+    '''switches = ((('-s', '--server'), 'server', '127.0.0.1:50001'),
                 (('-?', '--usage'), 'usage', False),
                 (('-f', '--files'), 'files', list_of_files))
-    program_name = 'fileClient.py'
+    program_name = 'fileClient'
     param_map = params.parseParams(switches)
 
     server, usage = param_map['server'], param_map['usage']
 
     if usage:
-        params.usage()
+        params.usage()'''
 
-    server_ip, server_port = re.split(':', server)
+    server_ip, server_port = '127.0.0.1', '50001'
     server_port = int(server_port)
 
     DATA_SIZE = 80 #79 + newline. From pep8
-    TOKEN = '\0' '''I don't know if this extends to other protocals or programs but
-    it works for mine. When encoded it is not the same as b'' so its good.'''
+    TOKEN = '\0'
 
-    file_descriptors = []
+    file_tuple = []
     for f in list_of_files:
         try:
             '''
@@ -41,7 +40,7 @@ def main():
             name of the file and the file descriptor. Each element in
             file_descriptors is (fd, filename string)
             '''
-            file_descriptors.extend((os.open(f, os.O_RDONLY), f))
+            file_tuple.append(tuple((os.open(f, os.O_RDONLY), f)))
         except:
             os.write(1, ('Error: Cannot open file %s\n' % f).encode()) # Fail
 
@@ -51,15 +50,22 @@ def main():
     cl_sock = sock.socket(sock.AF_INET, sock.SOCK_STREAM) #ipv4 & tcp settings
     cl_sock.connect((server_ip, server_port)) # Connect to server
 
-    client_fd = cl_sock.fileno() #Will use file_descriptor of socket. 
-    for f_fd in file_descriptors:
-        file_desc, file_name = file_descriptors
-        os.write(client_fd, TOKEN.encode())
+    client_fd = cl_sock.fileno() #Will use file_descriptor of socket.
+    print('Number of file descriptors: %d' % len(file_tuple))
+    for f in file_tuple:
+        file_desc, file_name = f
+        print('Filename is: %s' % file_name)
+        #print('Sending NULL token')
+        #os.write(client_fd, TOKEN.encode())
+        print('Sending: %s' % file_name)
         os.write(client_fd, file_name.encode())
+        print('Sending NULL token')
         os.write(client_fd, TOKEN.encode())
-        mini_buff = os.read(f_fd, DATA_SIZE) #Good linelength format. From py books
+        mini_buff = os.read(file_desc, DATA_SIZE) #Good linelength format. From py books
         while mini_buff:
             os.write(client_fd, mini_buff)
+            print('Sending: %s' % mini_buff.decode())
+            mini_buff = os.read(file_desc, DATA_SIZE)
         os.close(file_desc)
     os.close(client_fd)
 
