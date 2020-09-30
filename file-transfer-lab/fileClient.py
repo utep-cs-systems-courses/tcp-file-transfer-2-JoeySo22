@@ -54,17 +54,17 @@ def main():
     print('Number of file descriptors: %d' % len(file_tuple))
     for f in file_tuple:
         file_desc, file_name = f
-        print('Filename is: %s' % file_name)
+        #print('Filename is: %s' % file_name)
         #print('Sending NULL token')
         #os.write(client_fd, TOKEN.encode())
-        print('Sending: %s' % file_name)
+        #print('Sending: %s' % file_name)
         os.write(client_fd, file_name.encode())
-        print('Sending NULL token')
+        #print('Sending NULL token')
         os.write(client_fd, TOKEN.encode())
         mini_buff = os.read(file_desc, DATA_SIZE) #Good linelength format. From py books
         while mini_buff:
             os.write(client_fd, mini_buff)
-            print('Sending: %s' % mini_buff.decode())
+            #print('Sending: %s' % mini_buff.decode())
             mini_buff = os.read(file_desc, DATA_SIZE)
         os.close(file_desc)
     os.close(client_fd)
