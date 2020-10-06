@@ -9,6 +9,9 @@ Description: This is the client module for the file tranfering program.
 import socket as sock
 import re, sys, os
 
+sys.path.append('../framed-echo')
+from framedSock import framedSend
+
 '''sys.path.append('../lib')
 import params '''
 
@@ -26,7 +29,7 @@ def main():
     if usage:
         params.usage()'''
 
-    server_ip, server_port = '127.0.0.1', '50001'
+    server_ip, server_port = '127.0.0.1', '50000'
     server_port = int(server_port)
 
     DATA_SIZE = 80 #79 + newline. From pep8
@@ -51,7 +54,7 @@ def main():
     cl_sock.connect((server_ip, server_port)) # Connect to server
 
     client_fd = cl_sock.fileno() #Will use file_descriptor of socket.
-    print('Number of file descriptors: %d' % len(file_tuple))
+    #print('Number of file descriptors: %d' % len(file_tuple))
     for f in file_tuple:
         file_desc, file_name = f
         #print('Filename is: %s' % file_name)
@@ -76,12 +79,12 @@ Given the entire sys.argv data, find out what all intended filenames are.
 def get_filenames_from_arguments(arguments):
     list_of_files = []
     if '-f' in arguments:
-        os.write(1, 'Found [-f]\n'.encode())
+        #os.write(1, 'Found [-f]\n'.encode())
         _f_index = arguments.index('-f')
         list_of_files.extend(arguments[_f_index + 1: find_end_of_flag(
             arguments[_f_index + 1:], len(arguments))])
     elif '--files' in arguments:
-        os.write(1, 'Found [--files]\n'.encode())
+        #os.write(1, 'Found [--files]\n'.encode())
         _files_index = arguments.index('--files')
         list_of_files.extend(arguments[_files_index + 1: find_end_of_flag(
             arguments[_files_index + 1:], len(arguments))])
@@ -96,7 +99,7 @@ Returns the index of the end of the argument by finding the next flag. If there
 are no other flags then return the length of the list.
 ''' 
 def find_end_of_flag(argument_list, len_of_o_list):
-    os.write(1, ('The arguement received was: [%s]\n' %argument_list).encode())
+    #os.write(1, ('The arguement received was: [%s]\n' %argument_list).encode())
     for element in argument_list:
         if '-' in element:
             end_of_flag = argument_list.index(element)

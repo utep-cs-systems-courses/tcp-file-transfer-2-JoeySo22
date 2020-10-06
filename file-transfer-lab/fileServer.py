@@ -15,6 +15,9 @@ Description:
 
 import os, socket, sys
 
+sys.path.append('../framed-echo')
+from framedSock import framedReceive
+
 '''sys.path.append('../lib')
 import params
 
@@ -46,20 +49,41 @@ def main():
     s_sock.bind((listening_addr, listening_port))
     s_sock.listen(1)
 
-    os.write(1, 'Listening for clients...'.encode())
-    client_sock, client_addr = s_sock.accept()
-    client_ip, client_port = client_addr
-    #print(client_addr)
-    os.write(1, ('Got one: %s\n' % client_ip).encode())
 
-    working = True
-    client_sock_fd = client_sock.fileno()
-    while working:
-        #print('[[Reading from socket]]')
-        data = os.read(client_sock_fd, DATA_SIZE)
-        if data is b'':
-            sys.exit()
-        digest_stream(data.decode(), state)
+    while True:
+        os.write(1, 'Listening for clients...'.encode())
+        try:
+            client_sock, client_addr = s_sock.accept()
+        except KeyboardInterrupt:
+            print('Closing server.')
+            client_sock.close()
+            break
+        client_sock_fd = client_sock.fileno()
+        os.set_inheritable(client_sock_fd, True)
+        pid = os.fork()
+
+        #Parent branch
+        if pid:
+            #print('Parent process closed and returning to listening.')
+            client_sock.close()
+        #Child Branch
+        elif pid == 0:
+            s_sock.close()
+            client_ip, client_port = client_addr
+            #print(client_addr)
+            os.write(1, ('Got one: %s\n' % client_ip).encode())
+
+            working = True
+            while working:
+                #print('[[Reading from socket]]')
+                data = os.read(client_sock_fd, DATA_SIZE)
+                if data is b'':
+                    sys.exit()
+                digest_stream(data.decode(), state)
+            client_sock.close()
+            sys.exit(0)
+
+    s_sock.close()
 
 def digest_stream(data_string, state_flag):
     global TOKEN
