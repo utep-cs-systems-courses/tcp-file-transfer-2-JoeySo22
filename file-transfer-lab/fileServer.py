@@ -37,11 +37,12 @@ def main():
     s_sock.listen(1)
 
     while True:
-        os.write(1, 'Listening for clients...'.encode())
+        os.write(1, 'Listening for clients\n'.encode())
         try:
             client_sock, client_addr = s_sock.accept()
             client_thread = TCPClientSession(client_sock, client_addr)
             os.write(1, 'captured client.\n'.encode())
+            client_thread.start()
         except KeyboardInterrupt:
             print('Closing server.')
             client_sock.close()
@@ -63,25 +64,29 @@ class TCPClientSession (threading.Thread):
             self.filename = ''
             self.file_fd = None
             self.state = 'f'
+            print('%s created.' % self.name)
 
 
         #Inherited Thread method. Does receiving and writing logic here.
         def run(self):
+            print('%s is running.' % self.name)
             global DATA_SIZE
-            self.lock.aquire()
+            self.lock.acquire()
             working = True
             while working:
                 #print('[[Reading from socket]]')
                 data = os.read(self.client_sock_fd, DATA_SIZE)
                 if data is b'':
-                    sys.exit()
-                digest_stream(data.decode(), self.state)
+                    break
+                self.digest_stream(data.decode(), self.state)
             self.lock.release()
+            print('%s finished.' % self.name)
             self.c_sock.close()
             sys.exit(0)
 
 
         def digest_stream(self, data_string, state_flag):
+            #print('Data recieved %s' % data_string)
             global TOKEN
             global file_
             global state
@@ -98,50 +103,50 @@ class TCPClientSession (threading.Thread):
                     #print('[[Token. Adding to filename then openning.]]')
                     i = data_string.index(TOKEN)
                     #print('Token index is: %d' % i)
-                    add_to_filename(data_string[0:i])
-                    open_file_descriptor()
+                    self.add_to_filename(data_string[0:i])
+                    self.open_file_descriptor()
                     #print('[[Calling digest stream w/ d]]')
                     self.state = 'd'
-                    digest_stream(data_string[i + 1:], self.state)
+                    self.digest_stream(data_string[i + 1:], self.state)
                 else:
                     #print('[[No token. Adding to Filename. State flag is:]] %s' % state_flag)
-                    add_to_filename(data_string)
+                    self.add_to_filename(data_string)
             elif state_flag is 'd':
                 #print('[[State Flag is d]]')
                 if TOKEN in data_string:
                     #print('[[Token exists with d]]')
                     i = data_string.index(TOKEN)
-                    write_to_file(data_string(data_string[:i]))
+                    self.write_to_file(data_string(data_string[:i]))
                     #print('[[Closing file:]] %s' % filename)
                     os.close(self.file_fd)
                     self.state = 'f'
-                    digest_stream(data_string[i + 1,], self.state)
+                    self.digest_stream(data_string[i + 1,], self.state)
                 else:
                     #print('[[No token with d]]')
-                    write_to_file(data_string)
+                    self.write_to_file(data_string)
             else:
                 raise Exception('Cannot digest stream. unrecognized state flag: %s'
                                 % state_flag)
 
 
-        def add_to_filename(filename_string):
+        def add_to_filename(self, filename_string):
             #print('[[Adding to filename]]: (%s)' % filename_string)
-            global filename
-            filename += filename_string
+            self.filename += filename_string
 
 
-        def open_file_descriptor():
+        def open_file_descriptor(self):
             #print('[[Openning file descriptor]]: (%s)' % filename)
             if os.path.isfile(self.filename):
-                f_split = filename.split('.')
+                f_split = self.filename.split('.')
                 file_part = f_split[0]
                 f_split[0] = file_part + '_copy'
                 self.filename = '.'.join(f_split)
+            #print('%s is filename.' % self.filename)
             self.file_fd = os.open(self.filename, os.O_WRONLY | os.O_CREAT)
             #print('[[File is openned.]]')
 
 
-        def write_to_file(data_string):
+        def write_to_file(self, data_string):
             #print('[[Writing to file]]')
             os.write(self.file_fd, data_string.encode())
 
