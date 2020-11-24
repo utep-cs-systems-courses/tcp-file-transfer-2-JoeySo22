@@ -29,6 +29,7 @@ TOKEN = '\0' #I don't know if this extends to other protocals or programs but
 filename = ''
 state = 'f'
 thread_number = 0
+current_file_list = []
 
 def main():
     #Servers need IBLA, which stands for initiate, bind, listen, and accept.
@@ -57,6 +58,7 @@ class TCPClientSession (threading.Thread):
             thread_number += 1
             threading.Thread.__init__(self, name='ClientSession%d' % thread_number)
             self.lock = threading.Lock()
+            self.check_filename_lock = threading.Lock()
             self.c_sock = client_socket
             self.c_addr = client_address
             self.client_sock_fd = self.c_sock.fileno()
@@ -71,7 +73,7 @@ class TCPClientSession (threading.Thread):
         def run(self):
             print('%s is running.' % self.name)
             global DATA_SIZE
-            self.lock.acquire()
+            #self.lock.acquire() implementing lower lock
             working = True
             while working:
                 #print('[[Reading from socket]]')
@@ -79,7 +81,7 @@ class TCPClientSession (threading.Thread):
                 if data is b'':
                     break
                 self.digest_stream(data.decode(), self.state)
-            self.lock.release()
+            #self.lock.release() implementing lower lock
             print('%s finished.' % self.name)
             self.c_sock.close()
             sys.exit(0)
@@ -104,6 +106,12 @@ class TCPClientSession (threading.Thread):
                     i = data_string.index(TOKEN)
                     #print('Token index is: %d' % i)
                     self.add_to_filename(data_string[0:i])
+                    '''
+                    Here we will check if the filename exists.
+                    What kind of behavior should it have?
+                    Throw an exception.
+                    '''
+                    self.check_filename()
                     self.open_file_descriptor()
                     #print('[[Calling digest stream w/ d]]')
                     self.state = 'd'
@@ -128,6 +136,17 @@ class TCPClientSession (threading.Thread):
                 raise Exception('Cannot digest stream. unrecognized state flag: %s'
                                 % state_flag)
 
+        def check_filename(self):
+            '''
+            If the filename already exists in our workload then it should close the connection and kill that job.
+            if the filename doesn't exist, then continue.
+            '''
+            global current_file_list
+            self.check_filename_lock.acquire()
+            if self.filename in current_file_list:
+                raise Exception('%s is already being uploaded.' % self.filename)
+            self.check_filename_lock.release()
+
 
         def add_to_filename(self, filename_string):
             #print('[[Adding to filename]]: (%s)' % filename_string)
@@ -148,6 +167,11 @@ class TCPClientSession (threading.Thread):
 
         def write_to_file(self, data_string):
             #print('[[Writing to file]]')
+            self.lock.acquire()
             os.write(self.file_fd, data_string.encode())
+            self.lock.release()
+
+
 
 main()
+
